@@ -30,10 +30,16 @@ cluster2=""
 cleanup() {
   set +e
   if [ -d "$tmp/wt-a/app" ]; then
-    (cd "$tmp/wt-a/app" && HOME="$tmp/home" "$KINDCTL" delete --tag mw >/dev/null 2>&1 || true)
+    (
+      cd "$tmp/wt-a/app"
+      HOME="$tmp/home" "$KINDCTL" delete --tag mw
+    ) >/dev/null 2>&1 || true
   fi
   if [ -d "$tmp/wt-b/app" ]; then
-    (cd "$tmp/wt-b/app" && HOME="$tmp/home" "$KINDCTL" delete --tag mw >/dev/null 2>&1 || true)
+    (
+      cd "$tmp/wt-b/app"
+      HOME="$tmp/home" "$KINDCTL" delete --tag mw
+    ) >/dev/null 2>&1 || true
   fi
   rm -rf "$tmp"
 }
