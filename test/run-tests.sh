@@ -17,7 +17,7 @@ assert_file_exists() { [ -e "$1" ] || fail_msg "expected file to exist: $1"; }
 assert_not_exists() { [ ! -e "$1" ] || fail_msg "expected path not to exist: $1"; }
 assert_mode() {
   local mode
-  mode="$(stat -f '%Lp' "$1" 2>/dev/null || stat -c '%a' "$1")"
+  mode="$(python3 -c 'import os, sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777)[2:])' "$1")"
   assert_eq "$mode" "$2"
 }
 
