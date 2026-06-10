@@ -254,7 +254,7 @@ test_registry_modes_and_ownership() {
 test_registry_concurrent_writes_preserve_entries() {
   setup_fake_env
   for i in 1 2 3 4 5 6 7 8; do
-    HOME="$HOME" PATH="$PATH" bash -c "source '$KINDCTL'; kindctl_registry_upsert n$i '$TEST_TMP/r$i' '$HOME/.kube/kind/n$i.kubeconfig' kind-n$i '' ready true" &
+    bash -c "source '$KINDCTL'; kindctl_registry_upsert n$i '$TEST_TMP/r$i' '$HOME/.kube/kind/n$i.kubeconfig' kind-n$i '' ready true" &
   done
   wait
   python3 - "$HOME/.kube/kind/registry.json" <<'PY'
@@ -342,6 +342,7 @@ test_safety_strict_missing_for_cluster_targeting_commands() {
     "resume"
   )
   for cmd in "${commands[@]}"; do
+    # shellcheck disable=SC2086 # Intentional: each entry is a small command+args string for strictness checks.
     if "$KINDCTL" $cmd >"$TEST_TMP/out" 2>"$TEST_TMP/err"; then
       fail_msg "expected strict failure for: $cmd"
     fi

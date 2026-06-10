@@ -169,7 +169,6 @@ kindctl_derive() {
   KINDCTL_NAME="${KINDCTL_BASE}${suffix}"
   KINDCTL_CONTEXT="kind-${KINDCTL_NAME}"
   KINDCTL_STORE_DIR="$(kindctl_store)"
-  KINDCTL_REGISTRY="$(kindctl_registry_path)"
   KINDCTL_KUBECONFIG="${KINDCTL_STORE_DIR}/${KINDCTL_NAME}.kubeconfig"
 }
 
@@ -492,7 +491,9 @@ kindctl_cmd_create() {
   [ -n "$config" ] && args+=(--config "$config")
   [ -n "$k8s_version" ] && args+=(--image "kindest/node:$k8s_version")
   kind "${args[@]}"
-  [ -f "$KINDCTL_KUBECONFIG" ] && chmod 600 "$KINDCTL_KUBECONFIG" 2>/dev/null || true
+  if [ -f "$KINDCTL_KUBECONFIG" ]; then
+    chmod 600 "$KINDCTL_KUBECONFIG" 2>/dev/null || true
+  fi
   kindctl_registry_upsert "$KINDCTL_NAME" "$KINDCTL_ROOT" "$KINDCTL_KUBECONFIG" "$KINDCTL_CONTEXT" "$KINDCTL_TAG" pending true
   setup="$KINDCTL_ROOT/.kind/setup.sh"
   if [ -x "$setup" ]; then
@@ -819,7 +820,7 @@ EOF_TARGETS
 }
 
 kindctl_cmd_doctor() {
-  local missing=0 live line name root kubeconfig context tag managed setup status current_owned ports expected_name seen_expected_names=""
+  local missing=0 live name root kubeconfig context tag managed setup ports expected_name seen_expected_names=""
   for cmd in python3 kind docker kubectl; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
       printf 'missing: %s\n' "$cmd" >&2
@@ -838,7 +839,9 @@ kindctl_cmd_doctor() {
   printf 'doctor: store=%s\n' "$(kindctl_store)"
   while IFS=$'\t' read -r name root kubeconfig context tag managed setup; do
     [ -n "$name" ] || continue
-    [ -f "$kubeconfig" ] && chmod 600 "$kubeconfig" 2>/dev/null || true
+    if [ -f "$kubeconfig" ]; then
+      chmod 600 "$kubeconfig" 2>/dev/null || true
+    fi
     if [ -n "$root" ]; then
       expected_name="$(kindctl_derive_name_for_root_tag "$root" "$tag" || true)"
       if [ -n "$expected_name" ]; then

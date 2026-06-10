@@ -6,7 +6,8 @@ TEST_PATTERN ?=
 lint:
 	bash -n bin/kindctl
 	bash -n test/run-tests.sh
-	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/kindctl test/run-tests.sh; else echo "shellcheck not installed; skipping"; fi
+	bash -n test/run-integration.sh
+	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/kindctl test/run-tests.sh test/run-integration.sh; else echo "shellcheck not installed; skipping"; fi
 
 test:
 	TEST_PATTERN="$(TEST_PATTERN)" test/run-tests.sh
