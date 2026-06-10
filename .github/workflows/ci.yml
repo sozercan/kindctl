@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KIND_VERSION: v0.32.0
+  KUBERNETES_VERSION: v1.34.1
+
+jobs:
+  fast:
+    name: Fast tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Install shellcheck on macOS
+        if: runner.os == 'macOS'
+        run: brew install shellcheck
+
+      - name: Show tool versions
+        run: |
+          bash --version | head -n 1
+          python3 --version
+          git --version
+          make --version | head -n 1
+          shellcheck --version | head -n 1
+
+      - name: Lint
+        run: make lint
+
+      - name: Fast mocked tests
+        run: make test
+
+  e2e:
+    name: Real kind multi-worktree E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install CI dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck curl ca-certificates
+
+      - name: Install kind ${{ env.KIND_VERSION }}
+        run: |
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          chmod +x kind
+          sudo mv kind /usr/local/bin/kind
+          kind version
+
+      - name: Install kubectl ${{ env.KUBERNETES_VERSION }}
+        run: |
+          curl -fsSLo kubectl "https://dl.k8s.io/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+          kubectl version --client=true --output=yaml
+
+      - name: Show Docker state
+        run: |
+          docker version
+          docker info
+
+      - name: Lint and fast tests
+        run: |
+          make lint
+          make test
+
+      - name: Real multi-worktree kind E2E without global kubeconfig drift
+        run: |
+          set -euo pipefail
+          before="$(mktemp)"
+          after="$(mktemp)"
+          if [ -f "$HOME/.kube/config" ]; then
+            cp "$HOME/.kube/config" "$before"
+          else
+            : > "$before"
+          fi
+
+          KINDCTL_INTEGRATION_REQUIRE=1 make test-integration
+
+          if [ -f "$HOME/.kube/config" ]; then
+            cp "$HOME/.kube/config" "$after"
+          else
+            : > "$after"
+          fi
+          cmp -s "$before" "$after"
+
+      - name: Assert no kindctl E2E clusters remain
+        if: always()
+        run: |
+          set -euo pipefail
+          clusters="$(kind get clusters || true)"
+          printf '%s\n' "$clusters"
+          if printf '%s\n' "$clusters" | grep -E 'app-[0-9a-f]+-mw|kindctl.*wtcheck|repo-[0-9a-f]+-ci'; then
+            echo "kindctl E2E cluster leaked" >&2
+            exit 1
+          fi

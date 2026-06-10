@@ -1,5 +1,7 @@
 # kindctl
 
+[![CI](https://github.com/sozercan/kindctl/actions/workflows/ci.yml/badge.svg)](https://github.com/sozercan/kindctl/actions/workflows/ci.yml)
+
 `kindctl` is a small Bash wrapper and agent skill for running **repo/worktree-scoped kind clusters** without ever touching your global Kubernetes config.
 
 It lets you create and operate many local `kind` clusters across many repos and git worktrees while keeping each cluster isolated in its own kubeconfig:

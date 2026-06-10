@@ -3,12 +3,25 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KINDCTL="$ROOT/bin/kindctl"
 
+skip_or_fail() {
+  if [ "${KINDCTL_INTEGRATION_REQUIRE:-}" = "1" ]; then
+    echo "FAIL: $*" >&2
+    exit 1
+  fi
+  echo "SKIP: $*"
+  exit 0
+}
+
 for cmd in kind docker kubectl python3 git; do
-  command -v "$cmd" >/dev/null 2>&1 || { echo "SKIP: missing $cmd"; exit 0; }
+  command -v "$cmd" >/dev/null 2>&1 || skip_or_fail "missing $cmd"
 done
 if ! docker info >/dev/null 2>&1; then
-  echo "SKIP: Docker daemon is not reachable"
-  exit 0
+  skip_or_fail "Docker daemon is not reachable"
+fi
+
+create_args=(--tag mw)
+if [ -n "${KINDCTL_INTEGRATION_K8S_VERSION:-}" ]; then
+  create_args+=(--k8s-version "$KINDCTL_INTEGRATION_K8S_VERSION")
 fi
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/kindctl-it.XXXXXX")"
@@ -38,7 +51,7 @@ git worktree add -q -b feature "$tmp/wt-b/app"
 
 # Create a real kind cluster for worktree A.
 cd "$tmp/wt-a/app"
-HOME="$tmp/home" "$KINDCTL" create --tag mw
+HOME="$tmp/home" "$KINDCTL" create "${create_args[@]}"
 path1="$(HOME="$tmp/home" "$KINDCTL" path --tag mw)"
 cluster1="$(basename "$path1" .kubeconfig)"
 printf 'worktree-a cluster=%s kubeconfig=%s\n' "$cluster1" "$path1"
@@ -53,7 +66,7 @@ HOME="$tmp/home" "$KINDCTL" kubectl --tag mw get nodes
 
 # Create a real kind cluster for a second git worktree of the same repo.
 cd "$tmp/wt-b/app"
-HOME="$tmp/home" "$KINDCTL" create --tag mw
+HOME="$tmp/home" "$KINDCTL" create "${create_args[@]}"
 path2="$(HOME="$tmp/home" "$KINDCTL" path --tag mw)"
 cluster2="$(basename "$path2" .kubeconfig)"
 printf 'worktree-b cluster=%s kubeconfig=%s\n' "$cluster2" "$path2"
