@@ -89,11 +89,24 @@ All later operations derive the same name again from the current directory.
 
 ## Install
 
-Clone or keep this repo somewhere stable, then install the skill symlink:
+Install the skill globally with the standard [`skills`](https://github.com/vercel-labs/skills) installer:
+
+```sh
+npx --yes skills@latest add sozercan/kindctl \
+  --global \
+  --skill kindctl \
+  --agent claude-code \
+  --agent codex \
+  --yes
+```
+
+From a local checkout, the Makefile delegates to the same installer:
 
 ```sh
 make install-skill
 ```
+
+The `skills` CLI owns the agent-specific paths, including the universal `~/.agents/skills` layout and any Claude/Codex wiring it needs. This avoids hard-coding every supported agent's install directory in this repo.
 
 Optional CLI convenience:
 
@@ -101,11 +114,10 @@ Optional CLI convenience:
 make install-cli
 ```
 
-That symlinks:
+That symlinks only the executable:
 
 ```text
-~/.claude/skills/kindctl -> this repo
-~/.local/bin/kindctl     -> this repo/bin/kindctl
+~/.local/bin/kindctl -> this repo/bin/kindctl
 ```
 
 You can also call the wrapper directly:

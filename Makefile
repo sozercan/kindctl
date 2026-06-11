@@ -19,9 +19,7 @@ test-integration:
 
 .PHONY: install-skill install-cli
 install-skill:
-	mkdir -p "$(HOME)/.claude/skills"
-	ln -sfn "$(CURDIR)" "$(HOME)/.claude/skills/kindctl"
-	@echo "installed skill symlink: $(HOME)/.claude/skills/kindctl -> $(CURDIR)"
+	npx --yes skills@latest add "$(CURDIR)" --global --skill kindctl --agent claude-code --agent codex --yes
 
 install-cli:
 	mkdir -p "$(HOME)/.local/bin"
