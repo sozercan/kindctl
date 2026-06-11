@@ -8,8 +8,10 @@ kindctl_version() {
     return 0
   fi
 
-  local script_root
-  script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P 2>/dev/null || true)"
+  local script_root=""
+  if script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P 2>/dev/null)"; then
+    :
+  fi
   if [ -n "$script_root" ] && command -v git >/dev/null 2>&1; then
     if git -C "$script_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
       git -C "$script_root" describe --tags --always --dirty 2>/dev/null && return 0
