@@ -49,7 +49,7 @@ jobs:
               --head "$HEAD_BRANCH" \
               --state open \
               --json number,author,isDraft \
-              --jq 'map(select(.author.login == "dependabot[bot]" and .isDraft == false)) | first.number // empty')"
+              --jq 'map(select((.author.login == "dependabot[bot]" or .author.login == "app/dependabot") and .isDraft == false)) | first.number // empty')"
           fi
 
           if [ -z "${pr_number:-}" ]; then
@@ -58,10 +58,13 @@ jobs:
           fi
 
           author="$(gh pr view "$pr_number" --repo "$REPO" --json author --jq '.author.login')"
-          if [ "$author" != "dependabot[bot]" ]; then
-            echo "Refusing to automerge PR #$pr_number from non-Dependabot author: $author" >&2
-            exit 1
-          fi
+          case "$author" in
+            dependabot'[bot]'|app/dependabot) ;;
+            *)
+              echo "Refusing to automerge PR #$pr_number from non-Dependabot author: $author" >&2
+              exit 1
+              ;;
+          esac
 
           state="$(gh pr view "$pr_number" --repo "$REPO" --json state --jq '.state')"
           if [ "$state" != "OPEN" ]; then
