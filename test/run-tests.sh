@@ -457,6 +457,12 @@ assert 'apiVersion: kind.x-k8s.io/v1alpha4' in text
 PY
 }
 
+test_version_derives_from_git_and_allows_env_override() {
+  expected="$(git -C "$ROOT" describe --tags --always --dirty)"
+  assert_eq "$($KINDCTL --version)" "kindctl $expected"
+  assert_eq "$(KINDCTL_VERSION=dev-test "$KINDCTL" --version)" "kindctl dev-test"
+}
+
 run_one() {
   local name="$1"
   if [ -n "$TEST_PATTERN" ] && [[ "$name" != *"$TEST_PATTERN"* ]]; then
