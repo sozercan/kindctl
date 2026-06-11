@@ -2,7 +2,22 @@
 set -euo pipefail
 umask 077
 
-KINDCTL_VERSION="0.1.0"
+kindctl_version() {
+  if [ -n "${KINDCTL_VERSION:-}" ]; then
+    printf '%s\n' "$KINDCTL_VERSION"
+    return 0
+  fi
+
+  local script_root
+  script_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P 2>/dev/null || true)"
+  if [ -n "$script_root" ] && command -v git >/dev/null 2>&1; then
+    if git -C "$script_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      git -C "$script_root" describe --tags --always --dirty 2>/dev/null && return 0
+    fi
+  fi
+
+  printf 'unknown\n'
+}
 
 kindctl_die() {
   printf 'kindctl: error: %s\n' "$*" >&2
@@ -912,7 +927,7 @@ kindctl_main() {
   cmd="$1"; shift
   case "$cmd" in
     -h|--help|help) kindctl_usage ;;
-    --version|version) printf 'kindctl %s\n' "$KINDCTL_VERSION" ;;
+    --version|version) printf 'kindctl %s\n' "$(kindctl_version)" ;;
     create) kindctl_cmd_create "$@" ;;
     delete) kindctl_cmd_delete "$@" ;;
     exec) kindctl_cmd_exec "$@" ;;
