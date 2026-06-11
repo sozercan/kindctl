@@ -7,6 +7,7 @@ lint:
 	bash -n bin/kindctl
 	bash -n test/run-tests.sh
 	bash -n test/run-integration.sh
+	python3 test/lint-actions-pinned.py
 	@if command -v shellcheck >/dev/null 2>&1; then shellcheck bin/kindctl test/run-tests.sh test/run-integration.sh; else echo "shellcheck not installed; skipping"; fi
 
 test:

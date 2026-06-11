@@ -1,0 +1,82 @@
+name: Dependabot Automerge
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Optional Dependabot PR number to merge after CI has passed
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    name: Merge successful Dependabot PR
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.event == 'pull_request') ||
+        github.event_name == 'workflow_dispatch'
+      }}
+    steps:
+      - name: Find and merge Dependabot PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          MANUAL_PR: ${{ github.event.inputs.pr }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${MANUAL_PR:-}" ]; then
+            pr_number="$MANUAL_PR"
+          else
+            if [ -z "${HEAD_BRANCH:-}" ]; then
+              echo "No workflow_run head branch; nothing to merge."
+              exit 0
+            fi
+            pr_number="$(gh pr list \
+              --repo "$REPO" \
+              --head "$HEAD_BRANCH" \
+              --state open \
+              --json number,author,isDraft \
+              --jq 'map(select(.author.login == "dependabot[bot]" and .isDraft == false)) | first.number // empty')"
+          fi
+
+          if [ -z "${pr_number:-}" ]; then
+            echo "No open non-draft Dependabot PR found."
+            exit 0
+          fi
+
+          author="$(gh pr view "$pr_number" --repo "$REPO" --json author --jq '.author.login')"
+          if [ "$author" != "dependabot[bot]" ]; then
+            echo "Refusing to automerge PR #$pr_number from non-Dependabot author: $author" >&2
+            exit 1
+          fi
+
+          state="$(gh pr view "$pr_number" --repo "$REPO" --json state --jq '.state')"
+          if [ "$state" != "OPEN" ]; then
+            echo "PR #$pr_number is not open ($state); nothing to merge."
+            exit 0
+          fi
+
+          echo "Approving Dependabot PR #$pr_number after successful CI."
+          gh pr review "$pr_number" \
+            --repo "$REPO" \
+            --approve \
+            --body "Automated approval: CI passed for this Dependabot update." || true
+
+          echo "Merging Dependabot PR #$pr_number."
+          gh pr merge "$pr_number" \
+            --repo "$REPO" \
+            --squash \
+            --delete-branch
